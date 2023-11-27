@@ -48,48 +48,78 @@ def go(config: DictConfig):
                     "artifact_description": "Raw file as downloaded"
                 },
             )
-
+        
         if "basic_cleaning" in active_steps:
-            ##################
-            # Implement here #
-            ##################
-            pass
-
+            _ = mlflow.run(
+                 os.path.join(hydra.utils.get_original_cwd(), "src", "basic_cleaning"),
+                 "main",
+                 parameters={
+                     "input_artifact": "sample.csv:latest",
+                     "output_artifact": "clean_sample.csv",
+                     "output_type": "clean_sample",
+                     "output_description": "Data with outliers and null values removed",
+                     "min_price": config['etl']['min_price'],
+                     "max_price": config['etl']['max_price']
+                 },
+             )
         if "data_check" in active_steps:
-            ##################
-            # Implement here #
-            ##################
-            pass
+            _ = mlflow.run(
+                    os.path.join(root_path, "components", "data_check"),
+                    "main",
+                    parameters={
+                        "csv": "nyc_airbnb/clean_data.csv:latest",
+                        "ref": "nyc_airbnb/clean_data.csv:reference",
+                        "kl_threshold": config['data_check']['kl_threshold'],
+                        "min_price": config['etl']['min_price'],
+                        "max_price": config['etl']['max_price']
+                    },
+            )
 
         if "data_split" in active_steps:
-            ##################
-            # Implement here #
-            ##################
-            pass
+             _ = mlflow.run(
+                    os.path.join(root_path, "components", "data_split"),
+                    "main",
+                    parameters={
+                        "input_data": "nyc_airbnb/clean_data.csv:latest",
+                        "test_size": config['data']['test_size'],
+                        "random_state": config['main']['random_state'],
+                        "stratify": config['data']['stratify']
+                    },
+            )
 
         if "train_random_forest" in active_steps:
 
             # NOTE: we need to serialize the random forest configuration into JSON
             rf_config = os.path.abspath("rf_config.json")
+            #with open(rf_config, "w+") as fp:
+            #    json.dump(dict(config["pipeline"].items()), fp)
+            
             with open(rf_config, "w+") as fp:
-                json.dump(dict(config["modeling"]["random_forest"].items()), fp)  # DO NOT TOUCH
-
-            # NOTE: use the rf_config we just created as the rf_config parameter for the train_random_forest
-            # step
-
-            ##################
-            # Implement here #
-            ##################
-
-            pass
+                fp.write(OmegaConf.to_yaml(config["pipeline"]))
+    
+            _ = mlflow.run(
+                    os.path.join(root_path, "components", "train_random_forest"),
+                    "main",
+                    parameters={
+                        "trainval_artifact": "nyc_airbnb/trainval_data.csv:latest",
+                        "val_size": config['data']['val_size'],
+                        "random_state": config['main']['random_state'],
+                        "stratify": config['data']['stratify'],
+                        "rf_config": rf_config,
+                        "output_artifact": config['pipeline']['export_artifact']
+                    },
+            )            
 
         if "test_regression_model" in active_steps:
 
-            ##################
-            # Implement here #
-            ##################
-
-            pass
+            _ = mlflow.run(
+                    os.path.join(root_path, "components", "test_model"),
+                    "main",
+                    parameters={
+                        "mlflow_model": "nyc_airbnb/" + config['pipeline']['export_artifact'] + ":prod",
+                        "test_dataset": "nyc_airbnb/test_data.csv:latest"
+                    },
+            )   
 
 
 if __name__ == "__main__":
