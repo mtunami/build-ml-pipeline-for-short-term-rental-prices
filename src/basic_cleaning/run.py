@@ -70,21 +70,21 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--output_artifact_name", 
+        "--output_artifact, 
         type=str,
         help="Name of the output artifact",
         required=True
     )
 
     parser.add_argument(
-        "--output_artifact_type", 
+        "--output_type", 
         type=str,
         help="Type of the output artifact",
         required=True
     )
 
     parser.add_argument(
-        "--output_artifact_description", 
+        "--output_description", 
         type=str,
         help="Description of the output artifact",
         required=True
